@@ -5,6 +5,9 @@
 3. [ Project Development](#dcue)
 4. [ References ](#ref)
 
+[//]: # (I must include tools section and add tools images, check proper README design tutorial)
+
+
 <a name="desc"></a>
 # NIGERIA Health Facility Registry (HFR) Data Warehousing (*in progress*)
 
@@ -41,12 +44,17 @@ The architecture is showing my choice of tools and framework for each processes 
 * And as this is a prototype, the **Postgres Database** shall be used for the final data warehouse while the jupyter notebook with python or any other analytical tools would be used to analyse the data for answers
 
 ## ERD(Entity Relationship Diagram) Design
-*...in progress*
+The ERD  of the system as shown below can also be accessed here https://lucid.app/lucidchart/3b297f6f-6dd4-40b4-805c-263f42043573/edit?invitationId=inv_c95a73c5-49bf-464c-845e-37e7e9b6ba7e#
 
+![DBMS ER diagram (UML notation)](https://user-images.githubusercontent.com/58152694/180918741-1fa8a8f0-3755-4bfa-9441-29922a369c4f.png)
 
-
+From considering the HFR requirements and studying the value types and forms of data available on the HFR website:
+* I have designed a **Star schema** as my final data mart showing six (6) dimension tables.Having performed 3 levels of normalization (1NF, 2NF, 3NF) where applicable.
+* The model has also been designed to provide information for all possible grains. i.e the fact table rows  provide a high level of details.
+* This stage I would say has been the most tasking.
   
-
+## Data Extraction, Transformation and Loading (ETL) Implementaion
+*...in progress*
 
 
 
