@@ -1,11 +1,19 @@
 
+[//]: # (I must include tools section and add tools images, check proper README design tutorial)
+[//]: # (images and style from https://simpleicons.org/)
+![Python](https://img.shields.io/badge/Python-3.8-blueviolet?style=for-the-badge&logo=python)
+![PySpark](https://img.shields.io/badge/Apache_Spark-3.3.0-D22128?style=for-the-badge&logo=apachespark)
+![Pandas](https://img.shields.io/badge/pandas-1.4.3-150458?style=for-the-badge&logo=pandas)
+![Selenium](https://img.shields.io/badge/Selenium-3.141.0-43B02A?style=for-the-badge&logo=selenium)
+![Airflow](https://img.shields.io/badge/Apache_Airflow-2.3.3-017CEE?style=for-the-badge&logo=apacheairflow)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-2B2B2B?style=for-the-badge&logo=postgreSql)
+![Jupyter](https://img.shields.io/badge/jupyter-2B2B2B?style=for-the-badge&logo=jupyter)
+
 ## Table of Contents
 1. [ Project Description. ](#desc)
 2. [About Nigeria HFR](#about)
 3. [ Project Development](#dcue)
 4. [ References ](#ref)
-
-[//]: # (I must include tools section and add tools images, check proper README design tutorial)
 
 
 <a name="desc"></a>
@@ -17,7 +25,7 @@ This  project development emcompasses:
 1. The design of a **data ingestion pipeline architecture** showing the different tools and framework I would be  proposing to the organization in achieving the result.
 2. The design of the **ERD(Entity Relationship Diagram)** of the
 system and schema of my final data mart that would be used for reporting.
-3. ***The implementation of Data Extraction, Transformation and Loading (ETL)**
+3. **The implementation of Data Extraction, Transformation and Loading (ETL)**
 4. The **Automation and Scheduling** of the processes
  
 

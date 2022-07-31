@@ -1,0 +1,4 @@
+pandas==1.4.3
+numpy==1.20.1
+selenium==3.141.0
+pyspark==3.3.0
