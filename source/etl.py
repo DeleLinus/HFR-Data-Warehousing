@@ -6,13 +6,11 @@ SPARK_HOME = os.getenv("SPARK_HOME")
 findspark.init(SPARK_HOME)
 
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import udf, col, desc, asc, row_number, lit
-from pyspark.sql.functions import sum as Fsum
-from pyspark.sql.types import MapType, StructType, StructField, DoubleType, IntegerType,  StringType, ArrayType
+from pyspark.sql.functions import udf, col, explode, row_number, lit
+from pyspark.sql.types import IntegerType,  StringType, ArrayType
 from pyspark.sql.window import Window
 
-import numpy as np
-import pandas as pd
+
 
 
 def create_spark_session():
@@ -28,7 +26,7 @@ def create_spark_session():
 
 def read_and_transform_data(spark, input_data, output_data):
     """
-    This help clean, normalize and generally perform
+    This helps clean, normalize and generally perform
     adequate transformation on the hfr data to have it
     as a parquet file that can be loaded into the final destination
     or further degenerated into different fact and dimension tables
@@ -73,11 +71,60 @@ def read_and_transform_data(spark, input_data, output_data):
     df = df.withColumn("State_Unique_ID", col('State_Unique_ID').cast(IntegerType()))
 
     # prepare non atomic data for normalization (1NF)
-    make_list = udf(lambda x: x[2:-2].split("', '"), returnType=ArrayType(StringType()))
-    df = df \
-        .withColumn('Medical_Services', make_list('Medical_Services')) \
-        .withColumn('Surgical_Services', make_list('Surgical_Services')) \
-        .withColumn('OG_Services', make_list('OG_Services')) \
-        .withColumn('Pediatrics_Services', make_list('Pediatrics_Services')) \
-        .withColumn('Dental_Services', make_list('Dental_Services')) \
-        .withColumn('SC_Services', make_list('SC_Services'))
+
+    # non-atomic column names dictionary
+    non_atomic_cols_dict = {'Medical_Services': 'Medical_Services_nonatomic',
+                            'Surgical_Services': 'Surgical_Services_nonatomic',
+                            'OG_Services': 'OG_Services_nonatomic',
+                            'Pediatrics_Services': 'Pediatrics_Services_nonatomic',
+                            'Dental_Services': 'Dental_Services_nonatomic',
+                            'SC_Services': 'SC_Services_nonatomic',
+                            'Days_of_Operation': 'Days_of_Operation_nonatomic'}
+
+    @udf(returnType=ArrayType(StringType()))
+    def make_list(row):
+        """
+        makes non-atomic values into list
+        """
+        try:
+            if "[" in str(row):
+                # new value list for OG_Services and co with []
+                nvl = row[2:-2].split("', '")
+                return nvl
+            else:
+                # for Day of Operations column
+                nvl = [str(i).strip() for i in row.split(',')]
+                return nvl
+        except:
+            return row
+
+    for key_v, value_v in non_atomic_cols_dict.items():
+        # make non-atomic value a list
+        df = df.withColumn(key_v, make_list(key_v))
+
+    for key_v, value_v in non_atomic_cols_dict.items():
+        # rename non-atomic columns to aid recognition after transformation
+        df = df.withColumnRenamed(key_v, value_v)
+
+    for key_v, value_v in non_atomic_cols_dict.items():
+        # apply 1NF (create atomic values)
+        df = df.select("*", explode(df[value_v]).alias(key_v))
+
+    # drop non-atomic columns
+    col_to_drop = list(non_atomic_cols_dict.values())
+    df = df.drop(*col_to_drop)
+
+    # write df to parquet file
+    df.write.parquet(output_data)
+
+    return df
+
+
+
+
+
+
+
+if __name__ == '__main__':
+    input_data = "raw_hfr_data.csv"
+    output_data = "doctors.parquet"
