@@ -1,16 +1,14 @@
-import os
-import findspark
-
-# Get spark location on PC
-SPARK_HOME = os.getenv("SPARK_HOME")
-findspark.init(SPARK_HOME)
+# import findspark
+#
+# # Get spark location on PC
+# SPARK_HOME = os.getenv("SPARK_HOME")
+# findspark.init(SPARK_HOME)
 
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import udf, col, explode, row_number, lit
-from pyspark.sql.types import IntegerType,  StringType, ArrayType
+from pyspark.sql.types import IntegerType, StringType, ArrayType
 from pyspark.sql.window import Window
-
-
+import os
 
 
 def create_spark_session():
@@ -24,7 +22,7 @@ def create_spark_session():
     return spark
 
 
-def read_and_transform_data(spark, input_data, output_data):
+def read_and_transform_data(spark, input_data, output_folder):
     """
     This helps clean, normalize and generally perform
     adequate transformation on the hfr data to have it
@@ -37,11 +35,11 @@ def read_and_transform_data(spark, input_data, output_data):
         This is the spark session that has been created
     input_data: path
         This is the path to the raw hfr data saved by the scraper.
-    output_data: path
+    output_folder: path
         This is the path that holds all saved files
    """
     print("\nRunning read_and_transform_data")
-    # read-in the data
+    # get filepath to raw data file and read-in
     df = spark.read.csv(input_data, inferSchema=True, header=True)
     # select entries with 1 or more doctors
     df = df.filter(df.Number_of_Doctors > 0)
@@ -111,20 +109,29 @@ def read_and_transform_data(spark, input_data, output_data):
         df = df.select("*", explode(df[value_v]).alias(key_v))
 
     # drop non-atomic columns
-    col_to_drop = list(non_atomic_cols_dict.values())
-    df = df.drop(*col_to_drop)
-
+    cols_to_drop = list(non_atomic_cols_dict.values())
+    df = df.drop(*cols_to_drop)
+    # replace empty strings
+    df = df.replace("", None)
     # write df to parquet file
-    df.write.parquet(output_data)
-
+    df.write.parquet(os.path.join(output_folder, "doctors.parquet"), 'overwrite')
+    print("doctors.parquet file created and saved in {}".format(output_folder))
     return df
 
 
+def process_fact_personnel_table(mega_data):
+    """
+    This helps process the mega data into the fact table
 
-
-
+    Parameters
+    ----------
+    mega_data: pyspark dataframe
+        This is the output dataframe from read_and_transform_data.
+    """
 
 
 if __name__ == '__main__':
     input_data = "raw_hfr_data.csv"
-    output_data = "doctors.parquet"
+    output_folder = "output_parquet_folder"
+    spark = create_spark_session()
+    read_and_transform_data(spark, input_data, output_folder)

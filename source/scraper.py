@@ -205,7 +205,7 @@ def extract_soup_js_and_process_page_details(listing_url):
 
 
 class Scraper:
-    def __init__(self, link, out_file):
+    def __init__(self, link=NFR_LINK, out_file="_"):
         self.link = link
         self.out_file = out_file
         # to hold the data entries
@@ -271,10 +271,11 @@ class Scraper:
         print("Saving scraped data...")
         df.to_csv(self.out_file, index=False)
         print("Scraper Operations Completed after {} minutes!".format((time.time() - t0) / 60))
+        print("Scraper output data saved as {}".format(self.out_file))
 
         return df
 
 
 if __name__ == "__main__":
-    new_extractor = Scraper(NFR_LINK, 'raw_hfr_data.csv')
+    new_extractor = Scraper(out_file='raw_hfr_data.csv')
     new_extractor.run()
