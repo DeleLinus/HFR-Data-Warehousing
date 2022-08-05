@@ -5,7 +5,7 @@
 # findspark.init(SPARK_HOME)
 
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import udf, col, explode, row_number, lit
+from pyspark.sql.functions import udf, col, explode, row_number, lit, dense_rank
 from pyspark.sql.types import IntegerType, StringType, ArrayType
 from pyspark.sql.window import Window
 import os
@@ -113,6 +113,54 @@ def read_and_transform_data(spark, input_data, output_folder):
     df = df.drop(*cols_to_drop)
     # replace empty strings
     df = df.replace("", None)
+
+    # create PK/FK columns
+    fact_cols = ['Facility_Key', 'Loc_Key', 'Contacts_Key', 'DO_Key', 'CS_Key', 'SS_Key', 'Total_number_of_Beds',
+                 'Number_of_Doctors', 'Number_of_Pharmacists', 'Number_of_PT', 'Number_of_Dentists', 'Number_of_DT',
+                 'Number_of_Nurses', 'Number_of_Midwifes', 'Number_of_N/M', 'Number_of_LT', 'Number_of_LS',
+                 'HIM_Officers', 'Number_of_CHO', 'Number_of_CHEW', 'Number_of_JCHEW', 'Number_of_EHO', 'Number_of_HA']
+
+    dim_location_cols = ['State', 'State_Unique_ID', 'LGA', 'Ward',
+                         'Physical_Location', 'Postal_Address', 'Longitude',
+                         'Latitude']
+
+    dim_contacts_cols = ['Phone_Number', 'Alternate_Number', 'Email_Address', 'Website']
+
+    dim_facility_cols = ['Facility_Key', 'Facility_Code', 'Facility_Name', 'Registration_No',
+                         'Alternate_Name', 'Start_Date', 'Ownership', 'Ownership_Type',
+                         'Facility_Level', 'Facility_Level_Option', 'Hours_of_Operation',
+                         'Operational_Status', 'Registration_Status', 'License_Status']
+
+    dim_operationalday_cols = ['Days_of_Operation']
+
+    dim_commonservices_cols = ['Out_Patient_Services', 'In_Patient_Services', 'Onsite_Laboratory',
+                               'Onsite_Imaging', 'Onsite_Pharmacy', 'Mortuary_Services', 'Ambulance_Services']
+
+    dim_specializedservices_cols = ['Medical_Services', 'Surgical_Services', 'OG_Services',
+                                    'Pediatrics_Services', 'Dental_Services', 'SC_Services']
+
+    tables_key_dict = {"Loc_Key": dim_location_cols,
+                       "Contacts_Key": dim_contacts_cols,
+                       "DO_Key": dim_operationalday_cols,
+                       "CS_Key": dim_commonservices_cols,
+                       "SS_Key": dim_specializedservices_cols
+                       }
+
+    """
+    I could do away with partitionBy but according to 
+    https://stackoverflow.com/questions/33102727/primary-keys-with-apache-spark
+    It would means all data are moved to a single partition
+    which can cause serious performance degradation.
+
+    Also, dense_key is used instead of rank because it doesn't leave gaps
+    https://sparkbyexamples.com/pyspark/pyspark-window-functions/#dense_rank
+    """
+    for key_v, value_v in tables_key_dict.items():
+        window_spec = Window.partitionBy(lit("A")).orderBy(value_v)
+        df = df.withColumn(key_v, dense_rank().over(window_spec))
+
+
+
     # write df to parquet file
     df.write.parquet(os.path.join(output_folder, "doctors.parquet"), 'overwrite')
     print("doctors.parquet file created and saved in {}".format(output_folder))
