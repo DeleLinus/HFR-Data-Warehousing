@@ -14,7 +14,8 @@
 2. [About Nigeria HFR](#about)
 3. [ Project Development](#dcue)
 4. [ Environment Setup ](#setup)
-5. [ References ](#ref)
+5. [ Run Programs ](#installation)
+6. [ References ](#ref)
 
 
 <a name="desc"></a>
@@ -46,14 +47,14 @@ This design has been made using  https://www.app.diagrams.net/ .
 ![Dele_HFR_architecture](https://user-images.githubusercontent.com/58152694/179662268-03a5b394-9618-4262-a84e-73795e39f160.png)
 
 The architecture is showing my choice of tools and framework for each processes of the data warehousing project.
-* The data source as provided remains the HFR website (https://bit.ly/3lVu5C6) 
+* The data source as provided remains the [HFR website](https://bit.ly/3lVu5C6) 
 * The Data Extraction shall be carried out by utilizing the **Selenium Python web automation framework**. 
 * Data Transformation using the Python Big Data manipulation Framework - **PySpark** 
 * The workflow management or orchestration tool of choice for the Scheduling and Automation is the **Airflow**
 * And as this is a prototype, the **Postgres Database** shall be used for the final data warehouse while the jupyter notebook with python or any other analytical tools would be used to analyse the data for answers
 
 ## ERD(Entity Relationship Diagram) Design
-The ERD  of the system as shown below can also be accessed here https://lucid.app/lucidchart/3b297f6f-6dd4-40b4-805c-263f42043573/edit?invitationId=inv_c95a73c5-49bf-464c-845e-37e7e9b6ba7e#
+The ERD  of the system as shown below can also be accessed [here](https://lucid.app/lucidchart/3b297f6f-6dd4-40b4-805c-263f42043573/edit?invitationId=inv_c95a73c5-49bf-464c-845e-37e7e9b6ba7e#)
 
 ![DBMS ER diagram (UML notation)](https://user-images.githubusercontent.com/58152694/180918741-1fa8a8f0-3755-4bfa-9441-29922a369c4f.png)
 
@@ -81,12 +82,13 @@ The dependencies and third party libraries of this program are written in the `r
 * `pandas==1.4.3`
 * `numpy==1.20.1`
 * `selenium==3.141.0`
+* `beautifulsoup4==4.9.3`
 * `pyspark==3.3.0`
 
 Other dependencies include:
-* PostgreSQL 
-* Spark 3.3.0 Pre-built for Apache Hadoop2.7
-* Chromedriver _(compatible with your system Chrome browser)_
+* `PostgreSQL` 
+* `Spark 3.3.0 Pre-built for Apache Hadoop2.7`
+* `Chromedriver` _(compatible with your system Chrome browser)_
 
 which is needed to be downloaded, installed and added to System Environment variables on your local machine.
 
@@ -110,7 +112,7 @@ To install the 3rd party Python packages/dependencies once, follow the following
 $/> cd <project_directory>
 ```
 
-2. create and activate a virtual environment - <virtualenv_name> could be any name - _(optional)_:
+2. create and activate a virtual environment - <virtualenv_name> could be any name - **_(optional)_**:
 
 OS X & Linux:
 ```bash
@@ -139,30 +141,44 @@ Windows:
 ```
 
 <a name="installation"></a>
-## Installation
-Do the following to run the program:
+## Run Programs
+Ensure the Database credentials stored in the `warehouse_config.cfg` are replaced with your Database credentials.
+After this, you can do the following to run the programs:
 
-1. Open terminal and ensure the working directory is set as shown below (Very Important!!!). `your_path` is the root directory you have the program folder. Also, ensure <virtualenv_name> environment having all dependencies is/remained activated.
+1. Open terminal and ensure the working directory is set to the `source` folder of this project 
+(if you created a virtual environment before installing the `requirements.txt` file, ensure to 
+activate the environment).\
+
+Then:
+
+### Running the Scraper
+2. The scraper module should be run first using the command below.
 
 OS X & Linux:
-
 ```bash
-$ <your_path>/DeleLinus/
+$ python3 scraper.py
 ```
-
 Windows:
-
 ```bash
-> <your_path>/DeleLinus/
+> python scraper.py
 ```
-2. Then run the module "etl_app.py" to enjoy this program.
+This process will output a csv file that the `etl.py` module will work on. 
+
+### Running the ETL
+2. The etl module should be run after the scraper module is executed.
+
+OS X & Linux:
 ```bash
-$/> python etl_app.py
+$ python3 etl.py
 ```
+Windows:
+```bash
+> python etl.py
+```
+This process will output a parquet file, create tables and load data into the tables of the specified database 
 
-
-
-
+### Running Test.
+_...in progress_
 
 
 <a name="ref"></a>
@@ -170,3 +186,5 @@ $/> python etl_app.py
 
 - [About HFR](https://hfr.health.gov.ng/about-us)
 - [Architecture Design](https://www.app.diagrams.net/)
+- [prisma](https://www.prisma.io/dataguide/postgresql/setting-up-a-local-postgresql-database)
+- [Geeksforgeeks](https://www.geeksforgeeks.org/install-apache-spark-in-a-standalone-mode-on-windows/) 
