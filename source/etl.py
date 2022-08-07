@@ -10,14 +10,28 @@ from pyspark.sql.types import IntegerType, StringType, ArrayType
 from pyspark.sql.window import Window
 import pyspark.sql.functions as f
 import os
+import configparser
+
+# read database credentials
+config = configparser.ConfigParser()
+config.read("warehouse_config.cfg")
+
+PSQL_HOSTNAME = config['DATABASE']['PSQL_HOSTNAME']
+PSQL_PORTNUMBER = config['DATABASE']['PSQL_PORTNUMBER']
+PSQL_DBNAME = config['DATABASE']['PSQL_DBNAME']
+PSQL_USERNAME = config['DATABASE']['PSQL_USERNAME']
+PSQL_PASSWORD = config['DATABASE']['PSQL_PASSWORD']
+
 
 
 def create_spark_session():
     """
     create sparkSession object
+    https://stackoverflow.com/questions/34948296/using-pyspark-to-connect-to-postgresql
     """
     spark = SparkSession \
         .builder \
+        .config("spark.jars", "/C:/pyspark/spark-3.3.0-bin-hadoop2/jars/postgresql-42.2.26.jar") \
         .appName("HFR Data Pipeline") \
         .getOrCreate()
     return spark
@@ -40,8 +54,6 @@ def read_and_transform_data(spark, input_data):
     print("\nRunning read_and_transform_data")
     # get filepath to raw data file and read-in
     df = spark.read.csv(input_data, inferSchema=True, header=True)
-    # select entries with 1 or more doctors
-    df = df.filter(df.Number_of_Doctors > 0)
 
     @udf(returnType=StringType())
     def correct_phone_number(x):
@@ -103,7 +115,6 @@ def read_and_transform_data(spark, input_data):
     for key_v, value_v in specialized_services_cols_dict.items():
         df = df.withColumn(key_v, f.create_map(f.lit(value_v), key_v))
 
-
     # concat the specialized services mapped columns into one
     specialized_services_cols = list(specialized_services_cols_dict.keys())
     df = df.withColumn("Specialized_Services", f.map_concat(specialized_services_cols))
@@ -119,8 +130,6 @@ def read_and_transform_data(spark, input_data):
     df = df.drop(*["Days_of_Operation", "Specialized_Services"])
     # replace empty strings (no longer necessary since I replaced values like []
     df = df.replace("", None)
-
-
     return df
 
 
@@ -178,17 +187,17 @@ def create_table_keys(mega_data=None, output_folder=None):
         window_spec = Window.partitionBy(lit("A")).orderBy(value_v)
         mega_data = mega_data.withColumn(key_v, f.dense_rank().over(window_spec))
 
-
-
-    # write df to parquet file
-    mega_data.write.parquet(os.path.join(output_folder, "doctors.parquet"), 'overwrite')
+    # select entries with 1 or more doctors and write to parquet file
+    doctors_df = mega_data.filter(mega_data.Number_of_Doctors > 0)
+    doctors_df.write.parquet(os.path.join(output_folder, "doctors.parquet"), 'overwrite')
     print("doctors.parquet file created and saved in {}".format(output_folder))
 
     return mega_data
 
-def process_fact_personnel_table(mega_df):
+def process_tables(mega_df):
     """
-    This helps create Key-columns that would later be used as PK for the tables
+    This helps create tables with reference to the ERD and Schema I have proposed in the
+    database model
 
     Parameters
     ----------
@@ -199,135 +208,76 @@ def process_fact_personnel_table(mega_df):
                  'Number_of_Doctors', 'Number_of_Pharmacists', 'Number_of_PT', 'Number_of_Dentists', 'Number_of_DT',
                  'Number_of_Nurses', 'Number_of_Midwifes', 'Number_of_N/M', 'Number_of_LT', 'Number_of_LS',
                  'HIM_Officers', 'Number_of_CHO', 'Number_of_CHEW', 'Number_of_JCHEW', 'Number_of_EHO', 'Number_of_HA']
-
-    fact_personnel_table = mega_df.select(fact_cols).dropDuplicates().orderBy("Facility_Key")
-    # log
-    print("processed fact_personnel_table")
-    return fact_personnel_table
-
-def process_dim_facility_table(mega_df):
-    """
-    This helps create Key-columns that would later be used as PK for the tables
-
-    Parameters
-    ----------
-    mega_df: pyspark dataframe
-        This is the output dataframe from create_table_keys.
-    """
     dim_facility_cols = ['Facility_Key', 'Facility_Name', 'Facility_Code', 'Registration_No',
                          'Alternate_Name', 'Start_Date', 'Ownership', 'Ownership_Type',
                          'Facility_Level', 'Facility_Level_Option', 'Hours_of_Operation',
                          'Operational_Status', 'Registration_Status', 'License_Status']
-
-    dim_facility_table = mega_df.select(dim_facility_cols).dropDuplicates(["Facility_Key"]).orderBy("Facility_Key")
-    # log
-    print("processed dim_facility_table")
-    return dim_facility_table
-
-def process_dim_location_table(mega_df):
-    """
-    This helps create Key-columns that would later be used as PK for the tables
-
-    Parameters
-    ----------
-    mega_df: pyspark dataframe
-        This is the output dataframe from create_table_keys.
-    """
     dim_location_cols = ['Loc_Key', 'State', 'State_Unique_ID', 'LGA', 'Ward',
                          'Physical_Location', 'Postal_Address', 'Longitude',
                          'Latitude']
-
-    dim_location_table = mega_df.select(dim_location_cols).dropDuplicates(["Loc_Key"]).orderBy("Loc_Key")
-    # log
-    print("processed dim_location_table")
-    return dim_location_table
-
-
-def process_dim_contacts_table(mega_df):
-    """
-    This helps create Key-columns that would later be used as PK for the tables
-
-    Parameters
-    ----------
-    mega_df: pyspark dataframe
-        This is the output dataframe from create_table_keys.
-    """
     dim_contacts_cols = ['Contacts_Key', 'Phone_Number', 'Alternate_Number', 'Email_Address', 'Website']
-
-    dim_contacts_table = mega_df.select(dim_contacts_cols).dropDuplicates(["Contacts_Key"]).orderBy("Contacts_Key")
-    # log
-    print("processed dim_contacts_table")
-    return dim_contacts_table
-
-
-
-def process_dim_days_of_operation_table(mega_df):
-    """
-    This helps create Key-columns that would later be used as PK for the tables
-
-    Parameters
-    ----------
-    mega_df: pyspark dataframe
-        This is the output dataframe from create_table_keys.
-    """
     dim_days_of_operation_cols = ['DO_Key', 'Days']
-
-    dim_days_of_operation_table = mega_df.select(dim_days_of_operation_cols).dropDuplicates(["DO_Key"]).orderBy("DO_Key")
-    # log
-    print("processed dim_days_of_operation_table")
-    return dim_days_of_operation_table
-
-
-def process_dim_commonservices_table(mega_df):
-    """
-    This helps create Key-columns that would later be used as PK for the tables
-
-    Parameters
-    ----------
-    mega_df: pyspark dataframe
-        This is the output dataframe from create_table_keys.
-    """
     dim_commonservices_cols = ['CS_Key', 'Out_Patient_Services', 'In_Patient_Services', 'Onsite_Laboratory',
                                'Onsite_Imaging', 'Onsite_Pharmacy', 'Mortuary_Services', 'Ambulance_Services']
-
-    dim_commonservices_table = mega_df.select(dim_commonservices_cols).dropDuplicates(["CS_Key"]).orderBy("CS_Key")
-    # log
-    print("processed dim_commonservices_table")
-    return dim_commonservices_table
-
-
-def process_dim_specializedservices_table(mega_df):
-    """
-    This helps create Key-columns that would later be used as PK for the tables
-
-    Parameters
-    ----------
-    mega_df: pyspark dataframe
-        This is the output dataframe from create_table_keys.
-    """
     dim_specializedservices_cols = ['SS_Key', 'Service_Name', 'Service_Type']
 
-    dim_specializedservices_table = mega_df.select(dim_specializedservices_cols).dropDuplicates(["SS_Key"])\
-                                                                                .orderBy("SS_Key")
-    # log
+    # select columns and log
+    fact_personnel_table = mega_df.select(fact_cols).dropDuplicates().orderBy("Facility_Key")
+    print("processed fact_personnel_table")
+    dim_facility_table = mega_df.select(dim_facility_cols).dropDuplicates(["Facility_Key"]).orderBy("Facility_Key")
+    print("processed dim_facility_table")
+    dim_location_table = mega_df.select(dim_location_cols).dropDuplicates(["Loc_Key"]).orderBy("Loc_Key")
+    print("processed dim_location_table")
+    dim_contacts_table = mega_df.select(dim_contacts_cols).dropDuplicates(["Contacts_Key"]).orderBy("Contacts_Key")
+    print("processed dim_contacts_table")
+    dim_days_of_operation_table = mega_df.select(dim_days_of_operation_cols).dropDuplicates(["DO_Key"]).orderBy("DO_Key")
+    print("processed dim_days_of_operation_table")
+    dim_commonservices_table = mega_df.select(dim_commonservices_cols).dropDuplicates(["CS_Key"]).orderBy("CS_Key")
+    print("processed dim_commonservices_table")
+    dim_specializedservices_table = mega_df.select(dim_specializedservices_cols).dropDuplicates(["SS_Key"])
     print("processed dim_specializedservices_table")
-    return dim_specializedservices_table
+
+    return (fact_personnel_table, dim_facility_table, dim_location_table, dim_contacts_table, dim_days_of_operation_table,
+            dim_commonservices_table, dim_specializedservices_table)
 
 
-def load_into_db():
-    pass
-
-if __name__ == '__main__':
+def main():
+    """
+    Perform the following roles:
+    1. Get or create a spark session.
+    2. Read the data output from scraper.py
+    3. take the data and transform them to tables
+    which will then save the mega data to parquet file.
+    4. Load the tables into PostgreSQL.
+    """
     input_data = "raw_hfr_data.csv"
     output_folder1 = "output_parquet_folder"
     spark = create_spark_session()
-    mega_data = read_and_transform_data(spark, input_data)
-    mega_df = create_table_keys(mega_data=mega_data, output_folder=output_folder1)
+    # just to off logging (default is "WARN")
+    spark.sparkContext.setLogLevel("OFF")
+    mega_df = create_table_keys(mega_data=read_and_transform_data(spark, input_data), output_folder=output_folder1)
     # tables
-    table_fact = process_fact_personnel_table(mega_df)
-    table_facility = process_dim_facility_table(mega_df)
-    table_loc = process_dim_location_table(mega_df)
-    table_contact = process_dim_contacts_table(mega_df)
-    table_day = process_dim_days_of_operation_table(mega_df)
-    table_cs = process_dim_commonservices_table(mega_df)
-    table_ss = process_dim_specializedservices_table(mega_df)
+    table_fact, table_facility, table_loc, table_contact, table_day, table_cs, table_ss = process_tables(mega_df)
+
+    tables_dict = {"fact_personnel": table_fact, "dim_institutions": table_facility,
+                   "dim_location": table_loc, "dim_contacts": table_contact,
+                   "dim_days_of_operation": table_day, "dim_common_services": table_cs,
+                   "dim_specialized_services": table_ss
+                   }
+
+    URL = f"jdbc:postgresql://{PSQL_HOSTNAME}:{PSQL_PORTNUMBER}/{PSQL_DBNAME}"
+    for table_name, table_data in tables_dict.items():
+        table_data.write\
+                  .format("jdbc")\
+                  .option("url", URL) \
+                  .option("dbtable", table_name) \
+                  .option("user", PSQL_USERNAME) \
+                  .option("password", PSQL_PASSWORD) \
+                  .option("driver", 'org.postgresql.Driver') \
+                  .mode("overwrite") \
+                  .save()
+        print("{0} table loaded into {1} database".format(table_name, PSQL_DBNAME))
+
+
+if __name__ == '__main__':
+    main()
