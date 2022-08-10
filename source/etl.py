@@ -23,7 +23,6 @@ PSQL_USERNAME = config['DATABASE']['PSQL_USERNAME']
 PSQL_PASSWORD = config['DATABASE']['PSQL_PASSWORD']
 
 
-
 def create_spark_session():
     """
     create sparkSession object
@@ -58,7 +57,7 @@ def read_and_transform_data(spark, input_data):
     @udf(returnType=StringType())
     def correct_phone_number(x):
         """
-        cleans the Phone_Number column
+        cleans the phone_number column
         """
         try:
             if "-" in x:
@@ -70,18 +69,18 @@ def read_and_transform_data(spark, input_data):
         except:
             return x
 
-    df = df.withColumn("Phone_Number", correct_phone_number("Phone_Number"))
+    df = df.withColumn("phone_number", correct_phone_number("phone_number"))
     # replace invalid values with null
-    df = df.replace(["LAGOS", "+23401"], [None, None], ['State_Unique_ID', 'Postal_Address'])
+    df = df.replace(["LAGOS", "+23401"], [None, None], ['state_unique_ID', 'postal_address'])
     # replace empty values in the form [] with null
     df = df.replace(to_replace="[]", value=None)
     # assign proper datatype
-    df = df.withColumn("State_Unique_ID", col('State_Unique_ID').cast(IntegerType()))
+    df = df.withColumn("state_unique_ID", col('state_unique_ID').cast(IntegerType()))
 
     # prepare non atomic data for normalization (1NF)
     non_atomic_cols = ['Medical_Services', 'Surgical_Services', 'OG_Services',
-                            'Pediatrics_Services', 'Dental_Services', 'SC_Services',
-                            'Days_of_Operation']
+                       'Pediatrics_Services', 'Dental_Services', 'SC_Services',
+                       'Days_of_Operation']
 
     @udf(returnType=ArrayType(StringType()))
     def make_list(row):
@@ -120,10 +119,10 @@ def read_and_transform_data(spark, input_data):
     df = df.withColumn("Specialized_Services", f.map_concat(specialized_services_cols))
 
     # apply 1NF (create atomic values): explode_outer doesn't ignore null value like explode
-    df = df.withColumn("Days", f.explode_outer(df["Days_of_Operation"]))
-    df = df.select("*", f.explode_outer(df["Specialized_Services"]).alias("Service_Type", "Service_Name"))
-    # Service_Name is now reduced to an array
-    df = df.withColumn("Service_Name", f.explode_outer(df["Service_Name"]))
+    df = df.withColumn("day", f.explode_outer(df["Days_of_Operation"]))
+    df = df.select("*", f.explode_outer(df["Specialized_Services"]).alias("service_type", "service_name"))
+    # service_name is now reduced to an array
+    df = df.withColumn("service_name", f.explode_outer(df["service_name"]))
 
     # drop redundant columns
     df = df.drop(*specialized_services_cols)
@@ -148,30 +147,30 @@ def create_table_keys(mega_data=None, output_folder=None):
 
 
 
-    dim_location_cols = ['State', 'State_Unique_ID', 'LGA', 'Ward',
-                         'Physical_Location', 'Postal_Address', 'Longitude',
-                         'Latitude']
+    dim_location_cols = ['state', 'state_unique_ID', 'LGA', 'ward',
+                         'physical_location', 'postal_address', 'longitude',
+                         'latitude']
 
-    dim_contacts_cols = ['Phone_Number', 'Alternate_Number', 'Email_Address', 'Website']
+    dim_contacts_cols = ['phone_number', 'alternate_number', 'email_address', 'website']
 
-    dim_facility_cols = ['Facility_Code', 'Facility_Name', 'Registration_No',
-                         'Alternate_Name', 'Start_Date', 'Ownership', 'Ownership_Type',
-                         'Facility_Level', 'Facility_Level_Option', 'Hours_of_Operation',
-                         'Operational_Status', 'Registration_Status', 'License_Status']
+    dim_facility_cols = ['facility_code', 'facility_name', 'registration_no',
+                         'alternate_name', 'start_date', 'ownership', 'ownership_type',
+                         'facility_level', 'facility_level_option', 'hours_of_operation',
+                         'operation_status', 'registration_status', 'license_status']
 
-    dim_operationalday_cols = ['Days']
+    dim_operationalday_cols = ['day']
 
-    dim_commonservices_cols = ['Out_Patient_Services', 'In_Patient_Services', 'Onsite_Laboratory',
-                               'Onsite_Imaging', 'Onsite_Pharmacy', 'Mortuary_Services', 'Ambulance_Services']
+    dim_commonservices_cols = ['out_patient_services', 'in_patient_services', 'onsite_laboratory',
+                               'onsite_imaging', 'onsite_pharmacy', 'mortuary_services', 'ambulance_services']
 
-    dim_specializedservices_cols = ['Service_Name']
+    dim_specializedservices_cols = ['service_name']
 
-    tables_key_dict = {"Facility_Key": dim_facility_cols,
-                       "Loc_Key": dim_location_cols,
-                       "Contacts_Key": dim_contacts_cols,
-                       "DO_Key": dim_operationalday_cols,
-                       "CS_Key": dim_commonservices_cols,
-                       "SS_Key": dim_specializedservices_cols
+    tables_key_dict = {"institution_key": dim_facility_cols,
+                       "loc_key": dim_location_cols,
+                       "contacts_key": dim_contacts_cols,
+                       "DO_key": dim_operationalday_cols,
+                       "CS_key": dim_commonservices_cols,
+                       "SS_key": dim_specializedservices_cols
                        }
 
     """
@@ -180,7 +179,7 @@ def create_table_keys(mega_data=None, output_folder=None):
     It would means all data are moved to a single partition
     which can cause serious performance degradation.
 
-    Also, dense_key is used instead of rank because it doesn't leave gaps
+    Also, dense_rank is used instead of rank because it doesn't leave gaps
     https://sparkbyexamples.com/pyspark/pyspark-window-functions/#dense_rank
     """
     for key_v, value_v in tables_key_dict.items():
@@ -188,7 +187,7 @@ def create_table_keys(mega_data=None, output_folder=None):
         mega_data = mega_data.withColumn(key_v, f.dense_rank().over(window_spec))
 
     # select entries with 1 or more doctors and write to parquet file
-    doctors_df = mega_data.filter(mega_data.Number_of_Doctors > 0)
+    doctors_df = mega_data.filter(mega_data.number_of_doctors > 0)
     doctors_df.write.parquet(os.path.join(output_folder, "doctors.parquet"), 'overwrite')
     print("doctors.parquet file created and saved in {}".format(output_folder))
 
@@ -204,40 +203,40 @@ def process_tables(mega_df):
     mega_df: pyspark dataframe
         This is the output dataframe from create_table_keys.
     """
-    fact_cols = ['Facility_Key', 'Loc_Key', 'Contacts_Key', 'DO_Key', 'CS_Key', 'SS_Key', 'Total_number_of_Beds',
-                 'Number_of_Doctors', 'Number_of_Pharmacists', 'Number_of_PT', 'Number_of_Dentists', 'Number_of_DT',
-                 'Number_of_Nurses', 'Number_of_Midwifes', 'Number_of_N/M', 'Number_of_LT', 'Number_of_LS',
-                 'HIM_Officers', 'Number_of_CHO', 'Number_of_CHEW', 'Number_of_JCHEW', 'Number_of_EHO', 'Number_of_HA']
-    dim_facility_cols = ['Facility_Key', 'Facility_Name', 'Facility_Code', 'Registration_No',
-                         'Alternate_Name', 'Start_Date', 'Ownership', 'Ownership_Type',
-                         'Facility_Level', 'Facility_Level_Option', 'Hours_of_Operation',
-                         'Operational_Status', 'Registration_Status', 'License_Status']
-    dim_location_cols = ['Loc_Key', 'State', 'State_Unique_ID', 'LGA', 'Ward',
-                         'Physical_Location', 'Postal_Address', 'Longitude',
-                         'Latitude']
-    dim_contacts_cols = ['Contacts_Key', 'Phone_Number', 'Alternate_Number', 'Email_Address', 'Website']
-    dim_days_of_operation_cols = ['DO_Key', 'Days']
-    dim_commonservices_cols = ['CS_Key', 'Out_Patient_Services', 'In_Patient_Services', 'Onsite_Laboratory',
-                               'Onsite_Imaging', 'Onsite_Pharmacy', 'Mortuary_Services', 'Ambulance_Services']
-    dim_specializedservices_cols = ['SS_Key', 'Service_Name', 'Service_Type']
+    fact_cols = ['institution_key', 'loc_key', 'contacts_key', 'DO_key', 'CS_key', 'SS_key', 'total_number_of_beds',
+                 'number_of_doctors', 'number_of_pharmacists', 'number_of_PT', 'number_of_dentists', 'number_of_DT',
+                 'number_of_nurses', 'number_of_midwifes', 'number_of_N/M', 'number_of_LT', 'number_of_LS',
+                 'number_of_HIMO', 'number_of_CHO', 'number_of_CHEW', 'number_of_JCHEW', 'number_of_EHO', 'number_of_HA']
+    dim_facility_cols = ['institution_key', 'facility_name', 'facility_code', 'registration_no',
+                         'alternate_name', 'start_date', 'ownership', 'ownership_type',
+                         'facility_level', 'facility_level_option', 'hours_of_operation',
+                         'operation_status', 'registration_status', 'license_status']
+    dim_location_cols = ['loc_key', 'state', 'state_unique_ID', 'LGA', 'ward',
+                         'physical_location', 'postal_address', 'longitude',
+                         'latitude']
+    dim_contacts_cols = ['contacts_key', 'phone_number', 'alternate_number', 'email_address', 'website']
+    dim_day_of_operation_cols = ['DO_key', 'day']
+    dim_commonservices_cols = ['CS_key', 'out_patient_services', 'in_patient_services', 'onsite_laboratory',
+                               'onsite_imaging', 'onsite_pharmacy', 'mortuary_services', 'ambulance_services']
+    dim_specializedservices_cols = ['SS_key', 'service_name', 'Service_Type']
 
     # select columns and log
-    fact_personnel_table = mega_df.select(fact_cols).dropDuplicates().orderBy("Facility_Key")
+    fact_personnel_table = mega_df.select(fact_cols).dropDuplicates().orderBy("institution_key")
     print("processed fact_personnel_table")
-    dim_facility_table = mega_df.select(dim_facility_cols).dropDuplicates(["Facility_Key"]).orderBy("Facility_Key")
+    dim_facility_table = mega_df.select(dim_facility_cols).dropDuplicates(["institution_key"]).orderBy("institution_key")
     print("processed dim_facility_table")
-    dim_location_table = mega_df.select(dim_location_cols).dropDuplicates(["Loc_Key"]).orderBy("Loc_Key")
+    dim_location_table = mega_df.select(dim_location_cols).dropDuplicates(["loc_key"]).orderBy("loc_key")
     print("processed dim_location_table")
-    dim_contacts_table = mega_df.select(dim_contacts_cols).dropDuplicates(["Contacts_Key"]).orderBy("Contacts_Key")
+    dim_contacts_table = mega_df.select(dim_contacts_cols).dropDuplicates(["contacts_key"]).orderBy("contacts_key")
     print("processed dim_contacts_table")
-    dim_days_of_operation_table = mega_df.select(dim_days_of_operation_cols).dropDuplicates(["DO_Key"]).orderBy("DO_Key")
-    print("processed dim_days_of_operation_table")
-    dim_commonservices_table = mega_df.select(dim_commonservices_cols).dropDuplicates(["CS_Key"]).orderBy("CS_Key")
+    dim_day_of_operation_table = mega_df.select(dim_day_of_operation_cols).dropDuplicates(["DO_key"]).orderBy("DO_key")
+    print("processed dim_day_of_operation_table")
+    dim_commonservices_table = mega_df.select(dim_commonservices_cols).dropDuplicates(["CS_key"]).orderBy("CS_key")
     print("processed dim_commonservices_table")
-    dim_specializedservices_table = mega_df.select(dim_specializedservices_cols).dropDuplicates(["SS_Key"])
+    dim_specializedservices_table = mega_df.select(dim_specializedservices_cols).dropDuplicates(["SS_key"])
     print("processed dim_specializedservices_table")
 
-    return (fact_personnel_table, dim_facility_table, dim_location_table, dim_contacts_table, dim_days_of_operation_table,
+    return (fact_personnel_table, dim_facility_table, dim_location_table, dim_contacts_table, dim_day_of_operation_table,
             dim_commonservices_table, dim_specializedservices_table)
 
 
@@ -259,10 +258,10 @@ def main():
     # tables
     table_fact, table_facility, table_loc, table_contact, table_day, table_cs, table_ss = process_tables(mega_df)
 
-    tables_dict = {"fact_personnel": table_fact, "dim_institutions": table_facility,
-                   "dim_location": table_loc, "dim_contacts": table_contact,
-                   "dim_days_of_operation": table_day, "dim_common_services": table_cs,
-                   "dim_specialized_services": table_ss
+    tables_dict = {"factPersonnel": table_fact, "dimInstitutions": table_facility,
+                   "dimLocation": table_loc, "dimContacts": table_contact,
+                   "dimOperationalDay": table_day, "dimCommonServices": table_cs,
+                   "dimSpecializedServices": table_ss
                    }
 
     URL = f"jdbc:postgresql://{PSQL_HOSTNAME}:{PSQL_PORTNUMBER}/{PSQL_DBNAME}"
