@@ -22,6 +22,7 @@
 # NIGERIA Health Facility Registry (HFR) Data Warehousing (*in progress*)
 
 This is an end-to-end data engineering project that entails the design and implementation of a data warehouse for the Nigeria Health Facility Registry which is itself a program under the Nigeria Ministry of Health.
+The goal of this project is to develop a complete reporting solution to help the Ministry monitor and manage the contry's [Master Health Facility List (MFL)](#MFL).
 
 This  project development emcompasses:
 1. The design of a **data ingestion pipeline architecture** showing the different tools and framework I would be  proposing to the organization in achieving the result.
@@ -33,7 +34,7 @@ system and schema of my final data mart that would be used for reporting.
 
 <a name='about'></a>
 # About Nigeria HFR
-The Nigeria Health Facility Registry (HFR) was developed in 2017 as part of effort to dynamically manage the Master Health Facility List (MFL) in the country. The MFL "is a complete listing of health facilities in a country (both public and private) and is comprised of a set of identification items for each facility (signature domain) and basic information on the service capacity of each facility (service domain)".
+The Nigeria Health Facility Registry (HFR) was developed in 2017 as part of effort to dynamically manage the MFL in the country. <span id="MFL">The MFL "is a complete listing of health facilities in a country (both public and private) and is comprised of a set of identification items for each facility (signature domain) and basic information on the service capacity of each facility (service domain)"</span>.
 
 The Federal Ministry of Health had previously identified the need for an information system to manage the MFL in light of different shortcomings encountered in maintaining an up-to-date paper based MFL. The benefits of the HFR are numerous including serving as the hub for connecting different information systems thereby enabling integration and interoperability, eliminating duplication of health facility lists and for planning the establishment of new health facilities.
 
