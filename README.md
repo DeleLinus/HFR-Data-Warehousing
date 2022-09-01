@@ -34,7 +34,7 @@ system and schema of my final data mart that would be used for reporting.
 
 <a name='about'></a>
 # About Nigeria HFR
-The Nigeria Health Facility Registry (HFR) was developed in 2017 as part of effort to dynamically manage the MFL in the country. <span id="MFL">The MFL "is a complete listing of health facilities in a country (both public and private) and is comprised of a set of identification items for each facility (signature domain) and basic information on the service capacity of each facility (service domain)"</span>.
+The Nigeria Health Facility Registry (HFR) was developed in 2017 as part of effort to dynamically manage the MFL in the country. <span id="MFL"><b>The MFL "is a complete listing of health facilities in a country (both public and private) and is comprised of a set of identification items for each facility (signature domain) and basic information on the service capacity of each facility (service domain)"</b></span>.
 
 The Federal Ministry of Health had previously identified the need for an information system to manage the MFL in light of different shortcomings encountered in maintaining an up-to-date paper based MFL. The benefits of the HFR are numerous including serving as the hub for connecting different information systems thereby enabling integration and interoperability, eliminating duplication of health facility lists and for planning the establishment of new health facilities.
 
